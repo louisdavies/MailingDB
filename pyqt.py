@@ -16,7 +16,40 @@ import sys
 from PyQt5.QtWidgets import QAction, QMessageBox, QToolTip, QPushButton, qApp, QMainWindow, QApplication, QFileDialog
 from PyQt5.QtGui import *
 
+import csv
+
+
+class Supporter():
+
+	Fname = ""
+	SName = ""
+	Email = ""
+	Address = ""
+	Letters = list()
+
+	def __init__(self, FName, SName, Email=None, Address=None, Letters = [1,1,1]):
+		self.FName = FName
+		self.SName = SName
+		self.Email = Email
+		self.Address = Address
+		self.Letters = Letters
+
+def csv_reader(file_obj,person_list):
+	reader = csv.reader(file_obj)
+	for row in reader:
+		if row[0] != "":
+			print ("---".join(row))
+			print (row[0])
+			print (row[1])
+			print (row[2])
+			# print (row[3])
+			# person_list.append(Supporter(row[2],row[1],row[6],row[4],[row[8],row[9],row[3]]))
+
+
+
 class Example(QMainWindow):
+	
+	Supporters = list()
 	
 	def __init__(self):
 		super().__init__()
@@ -84,12 +117,18 @@ class Example(QMainWindow):
 
 	def LoadCSV(self, file_name):
 		print(file_name)
+		with open(file_name, "r") as f_obj:
+			csv_reader(f_obj,self.Supporters)
 
 	def loadDatabase(self):
 		DBfile = self.openFileNameDialog()
 		if DBfile != None:
+			try:
+				if (DBfile.split('.')[1] == "csv"):
+					print("Loaded Database")
+			except:
+					print("Couldn't Load Database")
 			self.LoadCSV(DBfile)
-			print("Loaded Database")
 
 	def openFileNameDialog(self):    
 		options = QFileDialog.Options()
