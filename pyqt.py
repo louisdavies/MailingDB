@@ -16,34 +16,58 @@ import sys
 from PyQt5.QtWidgets import QAction, QMessageBox, QToolTip, QPushButton, qApp, QMainWindow, QApplication, QFileDialog
 from PyQt5.QtGui import *
 
-import csv
+import csv,os
 
+Supporters = list()
 
 class Supporter():
 
-	Fname = ""
-	SName = ""
-	Email = ""
-	Address = ""
-	Letters = list()
+	numSupporters = 0 
 
-	def __init__(self, FName, SName, Email=None, Address=None, Letters = [1,1,1]):
-		self.FName = FName
-		self.SName = SName
-		self.Email = Email
-		self.Address = Address
-		self.Letters = Letters
+	def __init__(self, first, last, email=None, address=None, letters = [1,1,1], preference = 5):
+		self.first = first
+		self.last = last
+		if email == "":
+			self.email = None
+		else:
+			self.email = email
+		self.address = address
+		self.letters = letters
+		if preference == "":
+			self.preference = 5
+		else:
+			self.preference = preference
+		Supporter.numSupporters += 1
 
-def csv_reader(file_obj,person_list):
-	reader = csv.reader(file_obj)
-	for row in reader:
-		if row[0] != "":
-			print ("---".join(row))
-			print (row[0])
-			print (row[1])
-			print (row[2])
-			# print (row[3])
-			# person_list.append(Supporter(row[2],row[1],row[6],row[4],[row[8],row[9],row[3]]))
+	@property
+	def fullname(self):
+		return "{} {}".format(self.first,self.last)
+
+	def __str__(self):
+		if (self.email == None or self.preference == 1):
+			return self.fullname + " of:\n" + self.address 
+		else:
+			return self.fullname + " - " + self.email 
+
+	def LoadCSV(file_name):
+		print(file_name)
+		with open(file_name, "r") as f_obj:
+			fileContent = f_obj.read()
+			info = list()
+			string = ""
+			result = list()
+			for char in fileContent:
+				if char == ';':
+					result.append(Supporter(info[2],info[1],info[6],info[4],[int(info[8]),int(info[9]),int(info[10])]))
+					# print(info[0])
+					# print(info[1])
+					info = list()
+				if char == ',':
+					info.append(string)
+					string = ""
+				else:
+					string += char
+			return result
 
 
 
@@ -115,10 +139,6 @@ class Example(QMainWindow):
 		else:
 			pass   
 
-	def LoadCSV(self, file_name):
-		print(file_name)
-		with open(file_name, "r") as f_obj:
-			csv_reader(f_obj,self.Supporters)
 
 	def loadDatabase(self):
 		DBfile = self.openFileNameDialog()
@@ -150,7 +170,14 @@ class Example(QMainWindow):
 		
 		
 if __name__ == '__main__':
-	
-	app = QApplication(sys.argv)
-	ex = Example()
-	sys.exit(app.exec_())
+	Supporters = Supporter.LoadCSV("startlent18.csv")
+	result = [0,0,0]
+	for i in range(0,Supporters[0].numSupporters-1):
+		result[0] += Supporters[i].letters[0]
+		result[1] += Supporters[i].letters[1]
+		result[2] += Supporters[i].letters[2]
+	print(result)
+	# print(Supporters[300])
+	# app = QApplication(sys.argv)
+	# ex = Example()
+	# sys.exit(app.exec_())
