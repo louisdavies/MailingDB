@@ -22,7 +22,7 @@ import os
 if __name__ == '__main__':
 	
 
-	pdf = FPDF('L','mm',(150,100))
+	pdf = FPDF('P','mm',(150,100))
 	pdf.add_page()
 	pdf.set_font('Arial', 'B', 16)
 	pdf.cell(40, 10, 'Hello World!')

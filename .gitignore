@@ -1,1 +1,3 @@
-startlent18.csv
+*.csv
+*.pdf
+build/

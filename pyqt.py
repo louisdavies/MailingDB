@@ -1,27 +1,17 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-"""
-ZetCode PyQt5 tutorial 
-
-In this example, we create a simple
-window in PyQt5.
-
-Author: Jan Bodnar
-Website: zetcode.com 
-Last edited: August 2017
-"""
-
 import sys
 from PyQt5.QtWidgets import QAction, QMessageBox, QToolTip, QPushButton, qApp, QMainWindow, QApplication, QFileDialog
 from PyQt5.QtGui import *
 
-import csv,os
-
-Supporters = list()
+from fpdf import FPDF
+import os
+import pyperclip
 
 class Supporter():
 
+	Supporters = list()
 	numSupporters = 0 
 
 	def __init__(self, first, last, email=None, address=None, letters = [1,1,1], preference = 5):
@@ -36,7 +26,7 @@ class Supporter():
 		if preference == "":
 			self.preference = 5
 		else:
-			self.preference = preference
+			self.preference = int(preference)
 		Supporter.numSupporters += 1
 
 	@property
@@ -48,8 +38,48 @@ class Supporter():
 			return self.fullname + " of:\n" + self.address 
 		else:
 			return self.fullname + " - " + self.email 
+	
+	@classmethod
+	def makePDF(cls,PDFName):
+		pdf = FPDF('P','mm',(220,110))
+		for supporter in cls.Supporters:
+			print(supporter.preference)
+			envelope = [1,2,3,4,6,7,8,9]
+			if supporter.preference	in envelope:
+				pdf.add_page()
+				font_size = 20
+				line_spacing = 8
+				pdf.set_font('Arial', 'B', font_size)
+				pdf.set_xy(20, 20)
+				x_orig = pdf.get_x()
+				y_orig = pdf.get_y()
+				print(x_orig)
+				print(y_orig)
+				pdf.cell(40, 0, supporter.fullname)
+				addrLines = supporter.address.split("\n")
+				for i in range(0,len(addrLines)):
+					print(addrLines[i])
+					pdf.set_xy(x_orig, y_orig + line_spacing*(i+1))
+					pdf.set_font('Arial', 'B', font_size)
+					pdf.cell(40, 0, addrLines[i])
+				pdf.image('logo.jpg',120,35, 60,60)
+				pdf.set_font('Arial', '', 6)
+				stamptext = ""
+				if supporter.preference in [3,4,8,9]:
+					stamptext = "Hand"
+				elif supporter.preference in [1,6]:
+					stamptext = "UK"
+				elif supporter.preference in [2,7]:
+					stamptext = "Int"
+				pdf.set_xy(180, 12)
+				pdf.cell(15,20,stamptext,border = 1,align = 'C')
+				pdf.set_xy(180, 14)
+				pdf.cell(15,20,"{}T {}P {}F".format(supporter.letters[0],supporter.letters[1],supporter.letters[2]),border = 0,align = 'C')
 
-	def LoadCSV(file_name):
+		pdf.output(PDFName, 'F')
+
+	@classmethod
+	def loadCSV(cls,file_name):
 		print(file_name)
 		with open(file_name, "r") as f_obj:
 			fileContent = f_obj.read()
@@ -58,22 +88,41 @@ class Supporter():
 			result = list()
 			for char in fileContent:
 				if char == ';':
-					result.append(Supporter(info[2],info[1],info[6],info[4],[int(info[8]),int(info[9]),int(info[10])]))
-					# print(info[0])
-					# print(info[1])
+					result.append(Supporter(info[2],info[1],info[6],info[4],[int(info[8]),int(info[9]),int(info[10])],info[3]))
 					info = list()
 				if char == ',':
 					info.append(string)
 					string = ""
 				else:
 					string += char
-			return result
+			cls.Supporters = result
+
+	@classmethod
+	def saveCSV(cls,file_name):
+		with open(file_name, "w") as f_obj:
+			count = 0
+			for supporter in Supporter.Supporters:
+				count += 1
+				csvstring = "{},{},{},{},{},".format(count,supporter.last,supporter.first,supporter.preference,supporter.address)
+				csvstring += ",{},,{},{},{},;\n".format(supporter.email,supporter.letters[0],supporter.letters[1],supporter.letters[2])
+				f_obj.write(csvstring)
+		print("{} Saved succesfully".format(file_name))
+
+	@classmethod
+	def emailList(cls):
+		emails = ""
+		for supporter in cls.Supporters:
+			if supporter.preference in [5,6,7,8,9]:
+				emails += "{} <{}>,".format(supporter.fullname,supporter.email)
+		emails = emails[:-1]
+		print(emails)
+		pyperclip.copy(emails)# r.update()
+		return emails
 
 
-
-class Example(QMainWindow):
+class DBApp(QMainWindow):
 	
-	Supporters = list()
+	DBfile = ""
 	
 	def __init__(self):
 		super().__init__()
@@ -95,13 +144,18 @@ class Example(QMainWindow):
 		qbtn = QPushButton('Quit', self)
 		qbtn.setToolTip('Press to quit')
 		qbtn.clicked.connect(QApplication.instance().quit)
-		qbtn.resize(qbtn.sizeHint())
+		qbtn.resize(qbtn.sizeHint()) 	
 		qbtn.move(50, 100) 
 
 		exitAct = QAction(QIcon("exit.png"), '&Exit', self)        
 		exitAct.setShortcut('Ctrl+Q')
 		exitAct.setStatusTip('Exit application')
 		exitAct.triggered.connect(self.closeEvent)
+
+		saveAct = QAction('&Save', self)        
+		saveAct.setShortcut('Ctrl+S')
+		saveAct.setStatusTip('Save Database')
+		saveAct.triggered.connect(self.saveDatabase)
 
 		loadAct = QAction('&Load', self)        
 		loadAct.setShortcut('Ctrl+L')
@@ -113,6 +167,7 @@ class Example(QMainWindow):
 		menubar = self.menuBar()
 		fileMenu = menubar.addMenu('&File')
 		fileMenu.addAction(loadAct)
+		fileMenu.addAction(saveAct)
 		fileMenu.addAction(exitAct)
 		
 
@@ -139,21 +194,31 @@ class Example(QMainWindow):
 		else:
 			pass   
 
+	def saveDatabase(self):
+		DBnewfile = self.saveFileDialog()
+		try:
+			if (DBnewfile.split('.')[1] == "csv"):
+				Supporter.saveCSV(DBnewfile)
+				print("Saved Database")
+		except:
+				print("Couldn't Save Database")
+
 
 	def loadDatabase(self):
-		DBfile = self.openFileNameDialog()
-		if DBfile != None:
+		self.DBfile = self.openFileNameDialog()
+		if self.DBfile != None:
 			try:
-				if (DBfile.split('.')[1] == "csv"):
+				if (self.DBfile.split('.')[1] == "csv"):
 					print("Loaded Database")
 			except:
 					print("Couldn't Load Database")
-			self.LoadCSV(DBfile)
+			Supporter.loadCSV(self.DBfile)
 
 	def openFileNameDialog(self):    
 		options = QFileDialog.Options()
 		options |= QFileDialog.DontUseNativeDialog
-		fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Python Files (*.py)", options=options)
+		fileName, _ = QFileDialog.getOpenFileName(self,"Open Database CSV File", "","CSV Files (*.csv);;All Files (*)", options=options)
+		print(_)
 		if fileName:
 			return fileName
 		else:
@@ -162,7 +227,7 @@ class Example(QMainWindow):
 	def saveFileDialog(self):    
 		options = QFileDialog.Options()
 		options |= QFileDialog.DontUseNativeDialog
-		fileName, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Text Files (*.txt)", options=options)
+		fileName, _ = QFileDialog.getSaveFileName(self,"Save Database CSV File","","CSV Files (*.csv)", options=options)
 		if fileName:
 			return fileName
 		else:
@@ -170,14 +235,17 @@ class Example(QMainWindow):
 		
 		
 if __name__ == '__main__':
-	Supporters = Supporter.LoadCSV("startlent18.csv")
-	result = [0,0,0]
-	for i in range(0,Supporters[0].numSupporters-1):
-		result[0] += Supporters[i].letters[0]
-		result[1] += Supporters[i].letters[1]
-		result[2] += Supporters[i].letters[2]
-	print(result)
+	# Supporter.loadCSV("startlent18.csv")
+	# Supporter.makePDF("PDF.pdf")
+	# result = [0,0,0]
+	# for i in range(0,Supporter.numSupporters-1):
+	# 	result[0] += Supporter.Supporters[i].letters[0]
+	# 	result[1] += Supporter.Supporters[i].letters[1]
+	# 	result[2] += Supporter.Supporters[i].letters[2]
+	# print(result)
+	# Supporter.saveCSV("test3.csv")
+	# Supporter.emailList()
 	# print(Supporters[300])
-	# app = QApplication(sys.argv)
-	# ex = Example()
-	# sys.exit(app.exec_())
+	app = QApplication(sys.argv)
+	ex = DBApp()
+	sys.exit(app.exec_())
