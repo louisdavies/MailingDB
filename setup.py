@@ -1,6 +1,6 @@
 application_title = "CICCUDB"
-main_python_file = "pyqt.py"
-include_files = ["logo.jpg","exit.png","tcl86t.dll","tk86t.dll"]
+main_python_file = "importUiTest2.py"
+include_files = ["logo.jpg","exit.png","tcl86t.dll","tk86t.dll","AddSupporter.ui","Main.ui"]
 packages = ["pyqt","os","pyperclip","tkinter","sys","PyQt5"]
 your_name = "Louis Davies"
 program_description = "DB App"
